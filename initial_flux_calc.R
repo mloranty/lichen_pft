@@ -7,12 +7,13 @@
 # MML 07/27/13
 ##########################
 
-rm(list=ls())
 
-setwd("/Users/mloranty/Google Drive/Documents/Research/field_data/pft_lichen_flux/")
+setwd("c:\\Users\\hkropp\\Google Drive\\lichen")
 
-in.files <- list.files(path="raw_data/", full.names=T)
-plot.files <- paste("plots/",list.files(path="raw_data/"),".pdf",sep="")
+in.files <- list.files(path=paste0(getwd(),"/raw"), full.names=T)
+plotname<-gsub("c:/Users/hkropp/Google Drive/lichen/raw/","", in.files)
+plotname2<-gsub(".txt","", plotname)
+plot.files <- paste0(getwd(),"/plots/",plotname2,".pdf")
 flux.rates <- as.data.frame(in.files)
 flux.rates$CO2 <- 9999
 flux.rates$H2O <- 9999
@@ -31,7 +32,7 @@ for(i in 1:length(in.files))
   c.reg <- lm(dat$CO2.ppm.[rC]~rC)
   h.reg <- lm(dat$H2O.ppt.[rH]~rH)
   
-  pdf(file=plot.files[i],5,10)
+  pdf(file=paste0(getwd(),"/plots/",plotname2[i]),5,10)
   par(mfcol=c(2,1),mar=c(4,3,2,2))
   plot(dat$CO2.ppm.,xlab="Time (seconds)",
        ylab= "[CO2] (ppm)",
