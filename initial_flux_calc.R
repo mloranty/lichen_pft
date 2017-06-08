@@ -32,7 +32,7 @@ for(i in 1:length(in.files))
   c.reg <- lm(dat$CO2.ppm.[rC]~rC)
   h.reg <- lm(dat$H2O.ppt.[rH]~rH)
   
-  pdf(file=paste0(getwd(),"/plots/",plotname2[i]),5,10)
+  pdf(file=paste0(getwd(),"/plots/",plotname2[i],".pdf"),5,10)
   par(mfcol=c(2,1),mar=c(4,3,2,2))
   plot(dat$CO2.ppm.,xlab="Time (seconds)",
        ylab= "[CO2] (ppm)",
