@@ -11,8 +11,7 @@ require('xlsx')
 require('lubridate')
 rm(list=ls())
 
-setwd("/Users/mloranty/Google Drive/Documents/Research/NSFBorealFireCherskii_2014-17/Loranty_data/EXB_pft_hobo_Tsoil_ML/all/")
-
+setwd("/Users/mloranty/Documents/GitHub/lichen_pft/hobo_pft/")
 # list all of the collated csv files
 f <- list.files(pattern=".csv")
 # read first file 
@@ -39,7 +38,7 @@ temp <- temp[521:17392,]
 temp$date <- strptime(temp$date,format="%m/%d/%y %H:%M")
 
 #read data on sensor placement and veg condition#
-veg <- read.csv("/Users/mloranty/Google Drive/Documents/Research/NSFBorealFireCherskii_2014-17/Loranty_data/EXB_pft_hobo_Tsoil_ML/hobo_sensor_info.csv",header=T)
+veg <- read.csv("/Users/mloranty/Documents/GitHub/lichen_pft/hobo_sensor_info.csv",header=T)
 
 #put temp back in chronological order#
 # ord <- match(sort(temp$rec),temp$rec)
@@ -92,13 +91,16 @@ temp.monthly$shrub.sd <- apply(temp.monthly[,s.rec],1,FUN=sd,na.rm=T)
 
 # plot data for the paper
 
-pdf(file="/Users/mloranty/Google Drive/Documents/Research/manuscripts/PFT_Flux_lichen/figures/pft_Tsoil_hobo_annual.pdf",10,5)
+tiff(file="/Users/mloranty/Documents/GitHub/lichen_pft/paper_figures/figure4.tiff",
+     width=10,height=5,units="in",res=300,compression="lzw",bg="white")
 par(cex.lab=1.25,cex.axis=1.25,mar=c(0,6,3,2),mfcol=c(2,1))
 
 plot(temp.daily$date,temp.daily$lichen.mean,type="l",lwd=1.5,
-     ylab=expression(paste(T[soil]," (",C*degree,")")),
+     ylab="",yaxt="n",
      xlab="",xaxt="n",col="red",ylim=c(-14,8))
 axis.POSIXct(1,at=seq(temp.monthly$date[1],temp.monthly$date[24],by="month"),format="%b",labels=F)
+axis(side = 2,labels=T,tick=T,las=2,cex.axis=1.5)
+mtext(expression(paste(T[soil]," (",C*degree,")")),side=2,cex=1.5,line=3)
 lines(temp.daily$date,temp.daily$shrub.mean,type="l",lwd=2,col="black")
 lines(temp.daily$date,temp.daily$shrub.mean-temp.daily$shrub.sd,lwd=1,col="black",lty='dotted')
 lines(temp.daily$date,temp.daily$shrub.mean+temp.daily$shrub.sd,lwd=1,col="black",lty='dotted')
@@ -111,87 +113,17 @@ lines(temp.daily$date,temp.daily$lichen.mean-temp.daily$lichen.sd,lwd=1,col="red
 #         c(temp.daily$lichen.mean+temp.daily$lichen.sd,rev(temp.daily$lichen.mean-temp.daily$lichen.sd)),
 #         density = -1,col="lavender",border=NA)
 
-legend("bottomleft",c("Lichen","Shrub"),col=c("gray50","black"),lwd=2,bty="n",cex=1.25)
+legend("bottomleft",c("Lichen","Shrub"),col=c("red","black"),lwd=2,bty="n",cex=1.25)
 legend("topright","a",bty="n",cex=1.25)
 
 ## plot the difference between lichen and shrub
 par(cex.lab=1.25,cex.axis=1.25,mar=c(3,6,0,2),mfcol=c(2,1),new=T)
 plot(temp.daily$date,temp.daily$lichen.mean-temp.daily$shrub.mean,type="l",lwd=2,
-     ylab=expression(paste(T[dif]," (",C*degree,")")),
+     ylab="",yaxt="n",
      xlab="",xaxt="n",ylim=c(-0.5,4.5))
 axis.POSIXct(1,at=seq(temp.monthly$date[1],temp.monthly$date[24],by="month"),format="%b",labels=TRUE)
+axis(side = 2,labels=T,tick=T,las=2,cex.axis=1.5)
+mtext(expression(paste(T[dif]," (",C*degree,")")),side=2,cex=1.5,line=3)
 legend("topright","b",bty="n",cex=1.25)
 dev.off()
-
-## make an image sort of looking plot
-x <- ymd(unique(temp$day))
-y <- unique(temp$hour)
-
-z <- matrix(temp$dif,ncol=length(y),nrow=length(x),byrow=T)
-image(x,y,z)
-image(z,col=heat.colors(10))
-jet.colors <-colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan",
-                           "#7FFF7F", "yellow", "#FF7F00", "red", "#7F0000"))
-
-filled.contour(x,y,z, color = jet.colors,ylim=c(0,23))
-image.plot(x,y,z,ylim=c(0,23),col=jet.colors(10))
-
-###################
-#
-#   OLD PLOT CODE
-#
-###################
-
-# points(temp.monthly$date[2:24],temp.monthly$shrub.mean[2:24],pch=16,col="blue")
-# points(temp.monthly$date[2:24],temp.monthly$lichen.mean[2:24],pch=16,col="black")
-# 
-# segments(temp.monthly$date[2:24],temp.monthly$shrub.mean[2:24]-temp.monthly$shrub.sd[2:24],
-#        temp.monthly$date[2:24],temp.monthly$shrub.mean[2:24]+temp.monthly$shrub.sd[2:24],
-#        pch=16,col="blue",lwd=2,)
-
-# segments(temp.monthly$date[2:24],temp.monthly$lichen.mean[2:24]-temp.monthly$lichen.sd[2:24],
-#          temp.monthly$date[2:24],temp.monthly$lichen.mean[2:24]+temp.monthly$lichen.sd[2:24],
-#          pch=16,col="black",lwd=2,)
-
-#plot of avg. daily difference#
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/pft_Tsoil_hobo_annual_difference.pdf",6,6)
-plot(temp.daily$date,temp.daily$lichen.mean-temp.daily$shrub.mean,type="l",lwd=2,
-     ylab=expression(paste("Soil Temperature Difference (",C*degree,")")),
-     xlab="",xaxt="n")
-axis.POSIXct(1,at=seq(temp.monthly$date[2],temp.monthly$date[24],by="month"),format="%b",labels=TRUE)
-dev.off()
-#plot of avg. monthly difference#
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/pft_Tsoil_hobo_monthly_difference.pdf",6,6)
-plot(seq(temp.monthly$date[1],temp.monthly$date[24],by="month")
-     ,temp.monthly$lichen.mean-temp.monthly$shrub.mean,type="b",lwd=2,pch=16,lty=2,
-     ylab=expression(paste("Soil Temperature Difference (",C*degree,")")),
-     xlab="Month",xaxt="n")
-abline(h=0,lwd=1,lty=2)
-axis.POSIXct(1,at=seq(temp.monthly$date[2],temp.monthly$date[24],by="month"),format="%b",labels=TRUE)
-dev.off()
-# box and whisker plot by month #
-
-month.bp <- (temp.monthly[2:24,2])
-
-for(i in 3:19)
-{month.bp <- c(month.bp,temp.monthly[2:24,i])}
-
-month.bp <- as.data.frame(month.bp)
-month.bp$month <- rep(months(temp.monthly$date[2:24]),18)
-month.bp$Sensor <- rep(as.numeric(substr(names(temp.monthly)[2:19],1,7)),each=23)
-names(month.bp) <- c("temp","month","Sensor")
-month.bp$veg <- veg$Veg[match(month.bp$Sensor,veg$Serial.No.)]
-month.bp$date <- rep(temp.monthly$date[2:24],18)
-month.bp <- month.bp[order(month.bp$date),]
-
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/pft_Tsoil_hobo_monthly.pdf",10,6)
-boxplot(temp~veg*date,data=month.bp,col=c("black","blue"),
-        name=months(temp.monthly$date[2:24]),xaxt="n",
-        ylab=expression(paste("Soil Temperature (",C*degree,")")))
-
-axis(1,at=seq(1.5,45.5,2),months(temp.monthly$date[2:24]))
-legend("bottomleft",c("Lichen","Shrub"),fill=c("black","blue"),bty="n")
-dev.off()
-
-
 

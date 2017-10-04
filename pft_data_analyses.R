@@ -6,12 +6,12 @@
 # updated version of old analyses
 # from AGU 2013, ouch!
 ################################
-se <- function(x){sd(x,na.rm=T)/sqrt(length(which(is.na(x)==F)))}
 require("plyr")
-
+require("plotrix")
 rm(list=ls())
-setwd("/Users/mloranty/Google Drive/Documents/Research/field_data/pft_lichen_flux/")
+setwd("/Users/mloranty/Documents/GitHub/lichen_pft/")
 
+se <- function(x){sd(x,na.rm=T)/sqrt(length(which(is.na(x)==F)))}
 ####################################
 #read in plot and auxiliary env data
 ndvi <- read.csv("env_data/ndvi.csv")
@@ -120,8 +120,8 @@ table1 <- cbind(c("Lichen","Shrub/Moss","Shrub"),
 colnames(table1) <- c("pft","ndvi","shrub.agb","moss","Ks","td7.19","td8.3")
 write.csv(table1,file="table1.csv")
 
-####################################
-####################################
+#################################################################################################################
+#################################################################################################################
 # read  and calculate fluxes
 flux <- read.csv("flux.rates.final.2017-06-02.csv")
 # create var to indicate the plot
@@ -146,14 +146,14 @@ flux$h2o.mmol <- ((((flux$H2O*1000)*(125/0.25))*(flux$p.Kpa/100))/(0.08206*(flux
 flux$dark <- substr(as.character(flux$in.files),24,24)
 flux$dark <- replace(flux$dark,list=which(flux$dark=="."),"l")
 
-# now set up data from with all of the met drivers for analysis
+# now set up data frame with all of the met drivers for analysis
 d <- which(flux$dark=="d")
 l <- which(flux$dark=="l")
 
-met.flux <- join(met,flux[l,c(9,17,35,11,12,36,13,14,15)],by=c("date","plot"))
-colnames(met.flux)[19:25] <- c("nee","nee.r2","nee.p","et","et.r2","et.p","nee.et.rank")
-met.flux <- join(met.flux,flux[d,c(9,17,35,11,12,15)],by=c("date","plot"))
-colnames(met.flux)[26:29] <- c("reco","reco.r2","reco.p","reco.rank")
+met.flux <- join(met,flux[l,c(8,16,35,10,11,36,12,13,14)],by=c("date","plot"))
+colnames(met.flux)[20:26] <- c("nee","nee.r2","nee.p","et","et.r2","et.p","nee.et.rank")
+met.flux <- join(met.flux,flux[d,c(8,16,35,10,11,14)],by=c("date","plot"))
+colnames(met.flux)[27:30] <- c("reco","reco.r2","reco.p","reco.rank")
 
 # exclude low-quality data
 # this is somewhat objective; it depends on visual/manual assessment of fluxes
@@ -176,23 +176,65 @@ met.flux$reco[which(met.flux$reco<0)] <- NA
 # calculate gpp and omit negative gpp values - also not possible. 
 met.flux$gpp <- met.flux$reco-met.flux$nee
 met.flux$gpp[which(met.flux$gpp<0)] <- NA
+# calculate vpd
+met.flux$d <- (0.611*exp((17.502*met.flux$Tair)/(met.flux$Tair+240.97)))*(met.flux$rh.met/100)
+met.flux$d.met <- (0.611*exp((17.502*met.flux$Tair.met)/(met.flux$Tair.met+240.97)))*(met.flux$rh.met/100)
 write.csv(met.flux,file="met.flux.csv")
+#############################################################
+# look at relationship between Reco and temperature
+col <- ifelse(met.flux$veg.type==1,"grey60",
+              ifelse(met.flux$veg.type==2,"sienna3","royalblue2"))
+#pdf(file="reco_plots.pdf",10,6)
+tiff(file="/Users/mloranty/Documents/GitHub/lichen_pft/paper_figures/figure5.tiff",
+     width=10,height=6,units="in",res=300,compression="lzw",bg="white")
+par(mfcol=c(1,2),mar=c(5,4.5,4,0))
+plot(met.flux$Tsoil,met.flux$reco,pch=16,col=col,cex.lab=1.5,cex.axis=1.5,
+     xlab=expression(paste(T[soil]," (",C*degree,")",sep="")),xlim=c(0,11),
+     yaxt="n",ylab=" ")
+axis(side = 2,labels=T,tick=T,las=2,cex.axis=1.5)
+mtext(expression(paste(R[ECO]," (",mu,"mol ",m^-2," ",sec^-1,")",sep="")),side=2,cex=1.5,line=2.5)
+ts <- lm(met.flux$reco~met.flux$Tsoil)
+legend("topleft","a",bty="n",cex=1.5)
+legend("topright",c("Lichen","Shrub-Moss","Shrub"),bty="n",
+       col=c("grey60","sienna3","royalblue2"),pch=16,cex=1.25)
+#abline(coef = coefficients(ts),lty="dashed",lwd=1.5)
+
+par(mfcol=c(1,2),mar=c(5,0,4,4.5),new=T)
+plot(met.flux$Tair,met.flux$reco,pch=16,col=col,cex.lab=1.5,cex.axis=1.5,
+     xlab=expression(paste(T[air]," (",C*degree,")",sep="")),xlim=c(5,33),
+     ylab=expression(paste(R[ECO]," (",mu,"mol ",m^-2," ",sec^-1,")",sep="")),
+     yaxt="n")
+axis(side = 2,labels=F,tick=T,cex.axis=1.5)
+ta <- lm(met.flux$reco~met.flux$Tair)
+abline(coef = coefficients(ta),lty="dashed",lwd=1.5)
+legend("topleft","b",bty="n",cex=1.5)
+dev.off()
 
 # aggregate to daily values
-met.daily <- aggregate(met.flux[,c(6:16,18:19,22,26)],
+met.daily <- aggregate(met.flux[,c(6:16,18,20,23,27)],
                        by=list(met.flux$date),FUN="mean",na.rm=T)
-met.daily.se <- aggregate(met.flux[,c(6:16,18:19,22,26)],
+met.daily.se <- aggregate(met.flux[,c(6:16,18,20,23,27)],
                           by=list(met.flux$date),FUN="se")
 
 # aggregate to daily by plot/veg type
-veg.met.daily <- aggregate(met.flux[,c(6:16,18:19,22,26)],
+veg.met.daily <- aggregate(met.flux[,c(6:16,18,20,23,27)],
                            by=list(paste(met.flux$date,met.flux$veg.type,sep=".")),
                            FUN="mean",na.rm=T)
-veg.met.daily.se <- aggregate(met.flux[,c(6:16,18:19,22,26)],
+veg.met.daily.se <- aggregate(met.flux[,c(6:16,18,20,23,27)],
                            by=list(paste(met.flux$date,met.flux$veg.type,sep=".")),
                            FUN="se")
 write.csv(veg.met.daily,file="met_flux_daily_plot.csv",row.names = F)
 
+# aggregate by vegetation type
+veg.met.all <- aggregate(met.flux[,c(6:16,18,20,23,27)],
+                         by=list(met.flux$veg.type),
+                         FUN="mean",na.rm=T)
+veg.met.all.se <- aggregate(met.flux[,c(6:16,18,20,23,27)],
+                         by=list(met.flux$veg.type),
+                         FUN="se")
+write.csv(veg.met.all,file="met_flux_veg.csv",row.names = F)
+
+#################################################################################################################
 # write Table 2 for the paper
 table2 <- cbind(veg.met.daily$Group.1,
                 paste(round(veg.met.daily$Tsoil,digits=1)," (",round(veg.met.daily.se$Tsoil,digits=1),")",sep=""),
@@ -200,17 +242,19 @@ table2 <- cbind(veg.met.daily$Group.1,
                 paste(round(veg.met.daily$Tair.met,digits=1)," (",round(veg.met.daily.se$Tair.met,digits=1),")",sep=""),
                 paste(round(veg.met.daily$t.diff,digits=1)," (",round(veg.met.daily.se$t.diff,digits=1),")",sep=""),
                 paste(round(veg.met.daily$par.met,digits=0)," (",round(veg.met.daily.se$par.met,digits=0),")",sep=""),
-                paste(round(veg.met.daily$et,digits=2)," (",round(veg.met.daily.se$et,digits=2),")",sep=""))
-colnames(table2) <- c("Date.plot","Tsoil","Tsurf","Tair","Tdiff","PAR","ET")
+                paste(round(veg.met.daily$nee,digits=2)," (",round(veg.met.daily.se$nee,digits=2),")",sep=""),
+                paste(round(veg.met.daily$et,digits=2)," (",round(veg.met.daily.se$et,digits=2),")",sep=""),
+                paste(round(veg.met.daily$reco,digits=2)," (",round(veg.met.daily.se$reco,digits=2),")",sep=""))
+colnames(table2) <- c("Date.plot","Tsoil","Tsurf","Tair","Tdiff","PAR","NEE","ET","Reco")
 write.csv(table2,file="table2.csv",row.names = F)
 
 # run anova on daily temp/energy vars
 # use four days with consistent sample conditions
 d <- unique(met.flux$date)[4:7]
 
-stat.table <- matrix(nrow=12,ncol=8)
+stat.table <- matrix(nrow=12,ncol=10)
 stat.table[,1] <- rep(d,each=3)
-v <- c(9,10,15,18,14,22)
+v <- c(9,10,11,18,14,20,23,27)
 for(i in 1:length(d))
 {
   day <- met.flux[which(met.flux$date==d[i]),]
@@ -222,175 +266,91 @@ for(i in 1:length(d))
     r <- (i*3-2):(i*3)
     stat.table[r,j+2] <- t.hsd[[1]][,4]
   }
-    
 }
 
 stat.table[,2] <- rep(c(1.2,1.3,2.3),4)
-colnames(stat.table) <- c("date","plot","Tsoil","Tsurf","Tair","Tdiff","PAR","ET")
+colnames(stat.table) <- c("date","plot","Tsoil","Tsurf","Tair","Tdiff","PAR","NEE","ET","Reco")
 write.csv(stat.table,file="table2_stats.csv",row.names = F)
+#################################################################################################################
+table3 <- cbind(veg.met.all$Group.1,
+                paste(round(veg.met.all$Tsoil,digits=1)," (",round(veg.met.all.se$Tsoil,digits=1),")",sep=""),
+                paste(round(veg.met.all$Tsurf,digits=1)," (",round(veg.met.all.se$Tsurf,digits=1),")",sep=""),
+                paste(round(veg.met.all$Tair.met,digits=1)," (",round(veg.met.all.se$Tair.met,digits=1),")",sep=""),
+                paste(round(veg.met.all$t.diff,digits=1)," (",round(veg.met.all.se$t.diff,digits=1),")",sep=""),
+                paste(round(veg.met.all$par.met,digits=0)," (",round(veg.met.all.se$par.met,digits=0),")",sep=""),
+                paste(round(veg.met.all$nee,digits=2)," (",round(veg.met.all.se$nee,digits=2),")",sep=""),
+                paste(round(veg.met.all$et,digits=2)," (",round(veg.met.all.se$et,digits=2),")",sep=""),
+                paste(round(veg.met.all$reco,digits=2)," (",round(veg.met.all.se$reco,digits=2),")",sep=""))
+colnames(table3) <- c("VegType","Tsoil","Tsurf","Tair","Tdiff","PAR","NEE","ET","Reco")
+write.csv(table3,file="table3.csv",row.names = F)
+
+stat.table3 <- matrix(nrow=3,ncol=9)
+v <- c(9,10,11,18,14,20,23,27)
+
+for(j in 1:length(v))
+  {
+    t <- aov(met.flux[,v[j]]~met.flux$veg.type)
+    t.hsd <- TukeyHSD(t)
+    r <- (i*3-2):(i*3)
+    stat.table3[,j+1] <- t.hsd[[1]][,4]
+  }
 
 
+stat.table3[,1] <- rep(c(1.2,1.3,2.3))
+colnames(stat.table3) <- c("veg","Tsoil","Tsurf","Tair","Tdiff","PAR","NEE","ET","Reco")
+write.csv(stat.table3,file="table3_stats.csv",row.names = F)
+#################################################################################################################
+# compare canopy cover with lichen cover
+#################################################################################################################
+u.veg <- read.csv("understory_cover.csv",header=TRUE)
+cnpy <- read.csv("canopy_cover.csv", header=TRUE)
+lich <- aggregate(u.veg$lichen,by=list(u.veg$Site),FUN=mean,na.rm=T)
+lich.se <- aggregate(u.veg$lichen,by=list(u.veg$Site),FUN=se)
+names(lich) <- c("stand","lichen")
+names(lich.se) <- c("stand","lichen.se")
 
+cvr <- aggregate(cnpy$Canopy..,by=list(cnpy$Site),FUN=mean)
+cvr.se <- aggregate(cnpy$Canopy..,by=list(cnpy$Site),FUN=se)
+names(cvr) <- c("stand","cvr")
+names(cvr.se) <- c("stand","cvr.se")
 
+y4 <- join(lich,lich.se)
+y4 <- join(y4,cvr)
+y4 <- join(y4,cvr.se)
+
+rm(cvr,cvr.se,lich,lich.se)
+dg <- read.csv("dg_lichen_cover.csv",header=T)
+cvr.all <- join(y4,dg,type="full")
+#regression of lichen cover versus canopy cover
+veg.reg <- lm(y4$lichen~y4$cvr)
+veg.reg2 <- lm(log(lichen)~cvr,data=cvr.all)
+# make a plot for the paper
+# tiff(file="/Users/mloranty/Documents/GitHub/lichen_pft/paper_figures/figure2.tiff",
+#      width=6,height=5,units="in",res=300,compression="lzw",bg="white")
+# plot(y4$cvr,y4$lichen,pch=16,cex.axis=1.5,cex.lab=1.5,
+#      xlim=c(0,50),xlab="Canopy Cover (%)",
+#      ylim=c(0,40),ylab=" ",yaxt="n")
+# axis(side = 2,labels=T,tick=T,las=2,cex.axis=1.5)
+# mtext("Lichen Cover (%)",side=2,cex=1.5,line=3)
+# abline(coef = coefficients(veg.reg),lty="dashed",lwd=1.5)
+# dev.off()
+
+## all stands with exponential model
+cov.val <- seq(0,80,1)
+lich.exp <- exp(predict.lm(veg.reg2,data.frame(cvr=cov.val)))
+tiff(file="/Users/mloranty/Documents/GitHub/lichen_pft/paper_figures/figure2.tiff",
+     width=6,height=5,units="in",res=300,compression="lzw",bg="white")
+plot(cvr.all$cvr,cvr.all$lichen,pch=16,cex.axis=1.5,cex.lab=1.5,
+     xlim=c(0,80),xlab="Canopy Cover (%)",
+     ylim=c(0,50),ylab=" ",yaxt="n")
+plotCI(cvr.all$cvr,cvr.all$lichen,cvr.all$lichen.se,err="y",add=T,sfrac=0.01,gap=T)
+plotCI(cvr.all$cvr,cvr.all$lichen,cvr.all$cvr.se,err="x",add=T)
+
+axis(side = 2,labels=T,tick=T,las=2,cex.axis=1.5)
+mtext("Lichen Cover (%)",side=2,cex=1.5,line=3)
+lines(cov.val,lich.exp,lty="dashed",lwd=1.75)
+text(20,45,"log(y) = -0.022x + 2.8",pos=4)
+text(20,40,expression(paste(r^2," = 0.18, p<0.01",sep=" ")),pos=4)
+dev.off()
 
 ################################################################
-# OLD CODE FROM PREVIOUS AGU ANALYSES
-#BASIC STUFF, SUMMARIES AND ANOVAs
-###############################################################
-### read and calculate plot shrub biomass ###
-shrub <- read.xlsx("plot_env_data.xlsx",sheetName="shrub_biomass")
-shrub$plt.gen <- paste(shrub$Genus,shrub$Plot)
-shrub$trt <- paste(shrub$Genus,substr(as.character(shrub$Plot),3,3))
-plot.shrub <- aggregate(shrub$AGB..g.,list(shrub$plt.gen),FUN=sum,na.rm=T)
-avg.shrub <- aggregate(plot.shrub$x,
-                       list(paste(substr(plot.shrub$Group.1,1,nchar(plot.shrub$Group.1)-4),
-                              substr(plot.shrub$Group.1,nchar(plot.shrub$Group.1),nchar(plot.shrub$Group.1)))),
-                             FUN=mean)
-avg.shrub.tot <- aggregate(shrub$AGB..g.,list(shrub$Plot),FUN=sum)
-colnames(avg.shrub.tot) <- c("plot","biomass")
-ndvi <- read.xlsx("plot_env_data.xlsx",sheetName="ndvi")
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/avg_plot_shrub_biomass.pdf",3.5,6)
-par(cex=1.2,mgp=c(2.5,1,0))
-barplot(rbind(avg.shrub$x[2:3],avg.shrub$x[4:5])*4,
-        col=c("black","gray"),
-        names=c("Shrub\nMoss","Shrub"),ylim=c(0,2000),
-        ylab=expression(paste("Shrub Biomass (g ",m^-2,")")))
-legend("topleft",c("Betula","Salix"),fill=c("black","gray"),bty="n")
-dev.off()
-############################################################################################
-### read and calculate plot percent cover ###
-pc <- read.xlsx("plot_env_data.xlsx",sheetName="percent cover",startRow=2)
-pc.plot <- aggregate(pc,list(substr(pc$plot,3,3)),FUN=mean,na.rm=T)
-pc.plot.se <- aggregate(pc,list(substr(pc$plot,3,3)),FUN=se)
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/avg_plot_ndvi.pdf",4,6)
-par(cex=1.2,mgp=c(2.5,1,0))
-barplot(rowMeans(pc.plot[,16:18]),col="black",ylab="NDVI",
-        ylim=c(0,0.8),names=c("Lichen","Shrub\nMoss","Shrub"))
-dev.off()
-
-pc <- merge(pc,avg.shrub.tot)
-plot(pc$biomass,pc$moss.und)
-############################################################################################
-### read and calculate met ###
-met <- read.xlsx("plot_env_data.xlsx",sheetName="met")
-met$veg <- substr(met$Plot,3,3)
-met.sub <- met[13:87,]
-
-plot.met <- aggregate(met.sub,list(met.sub$Plot),FUN=mean,na.rm=T)
-veg.met <- aggregate(met.sub,list(met.sub$veg),FUN=mean,na.rm=T)
-veg.met.se <- aggregate(met.sub,list(met.sub$veg),FUN=se)
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/avg_plot_TD.pdf",4,6)
-par(cex=1.2,mgp=c(2.5,1,0))
-barplot(veg.met$TD,col="gray",ylab="ALT (cm)",main="Active Layer Thickness",
-        ylim=c(80,0),names=c("Lichen","Shrub\nMoss","Shrub"),width=1)
-arrows(c(0.7,1.9,3.1),veg.met$TD-veg.met.se$TD,
-      c(0.7,1.9,3.1),veg.met$TD+veg.met.se$TD,
-      angle=90,code=3)
-dev.off()
-
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/avg_plot_TC.pdf",4,6)
-par(cex=1.2,mgp=c(2.5,1,0))
-barplot(veg.met$ThCnd,col="gray",main="Thermal Conductivity",
-        ylab=expression(paste("Thermal Conductivity (W",m^-1," ",C*degree^-1,")")),
-        ylim=c(0,0.4),names=c("Lichen","Shrub\nMoss","Shrub"))
-arrows(c(0.7,1.9,3.1),veg.met$ThCnd-veg.met.se$ThCnd,
-       c(0.7,1.9,3.1),veg.met$ThCnd+veg.met.se$ThCnd,
-       angle=90,code=3)
-dev.off()
-
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/avg_plot_TSoil.pdf",4,6)
-par(cex=1.2,mgp=c(2.5,1,0))
-barplot(veg.met$Tsoil,col="gray",main="Soil Temperature",
-        ylab=expression(paste("Soil Temperature (",C*degree,")")),
-        ylim=c(0,6),names=c("Lichen","Shrub\nMoss","Shrub"))
-arrows(c(0.7,1.9,3.1),veg.met$Tsoil-veg.met.se$Tsoil,
-       c(0.7,1.9,3.1),veg.met$Tsoil+veg.met.se$Tsoil,
-       angle=90,code=3)
-dev.off()
-
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/avg_plot_Tsurf.pdf",4,6)
-par(cex=1.2,mgp=c(2.5,1,0))
-barplot(veg.met$Tsurf,col="gray",main="Surface Temperature",
-        ylab=expression(paste("Radiometric Temperature (",C*degree,")")),
-        ylim=c(0,20),names=c("Lichen","Shrub\nMoss","Shrub"))
-arrows(c(0.7,1.9,3.1),veg.met$Tsurf-veg.met.se$Tsurf,
-       c(0.7,1.9,3.1),veg.met$Tsurf+veg.met.se$Tsurf,
-       angle=90,code=3)
-dev.off()
-
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/avg_plot_SM.pdf",4,6)
-par(cex=1.2,mgp=c(2.5,1,0))
-barplot(veg.met$SM*100,col="gray",main="Soil Moisture",
-        ylab="Soil Moisture (%)",ylim=c(0,40),
-        names=c("Lichen","Shrub\nMoss","Shrub"))
-arrows(c(0.7,1.9,3.1),veg.met$SM*100-veg.met.se$SM*100,
-       c(0.7,1.9,3.1),veg.met$SM*100+veg.met.se$SM*100,
-       angle=90,code=3)
-dev.off()
-############################################################################################
-
-ET <- aov(mmol.H2O.m2~veg,light.flux)
-ER <- aov(umol.CO2.m2~veg,dark.flux)
-light.flux <- light.flux[-which(light.flux$plot==5.1),]
-dark.flux <- dark.flux[-which(dark.flux$plot==5.1),]
-
-gpp <- aggregate(light.flux,list(light.flux$veg),FUN=mean,na.rm=T)
-gpp.se <- aggregate(light.flux,list(light.flux$veg),FUN=se)
-
-gpp.plot <- aggregate(light.flux,list(light.flux$plot),FUN=mean,na.rm=T)
-
-er <- aggregate(dark.flux,list(dark.flux$veg),FUN=mean,na.rm=T)
-er.se <- aggregate(dark.flux,list(dark.flux$veg),FUN=se)
-er.plot <- aggregate(dark.flux,list(dark.flux$plot),FUN=mean,na.rm=T)
-f.dat <- rbind(gpp$umol.CO2.m2,gpp$gpp,er$umol.CO2.m2)
-f.dat.se <- rbind(gpp.se$umol.CO2.m2,gpp.se$gpp,er.se$umol.CO2.m2)
-
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/C_flux.pdf",6,6)
-par(cex=1.2,mgp=c(2.5,1,0))
-barplot(f.dat,beside=T,col=c("black","darkgreen","gray"),main="Carbon Flux",
-        ylab=expression(paste(CO[2]," Flux (",mu,"mol",m^-2," ",sec^-1,")")),
-        ylim=c(-5,4),names=c("Lichen","Shrub\nMoss","Shrub"),width=1)
-arrows(c(1,2,3,5,6,7,9,10,11)+0.5,as.vector(f.dat-f.dat.se),
-       c(1,2,3,5,6,7,9,10,11)+0.5,as.vector(f.dat+f.dat.se),
-       angle=90,code=3,length=0.1)
-
-legend("bottomleft",c("NEE","GPP",expression(R[ECO])),fill=c("black","darkgreen","gray"),bty="n")
-dev.off()
-
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/ET.pdf",4,6)
-par(cex=1.2,mgp=c(2.5,1,0))
-barplot(gpp$mmol.H2O.m2,col="gray",
-        ylab=expression(paste(H[2],"O Flux (mmol ",m^-2," ",sec^-1,")")),
-        ylim=c(0,1.5),names=c("Lichen","Shrub\nMoss","Shrub"))
-arrows(c(0.7,1.9,3.1),gpp$mmol.H2O.m2-gpp.se$mmol.H2O.m2,
-       c(0.7,1.9,3.1),gpp$mmol.H2O.m2+gpp.se$mmol.H2O.m2,
-       angle=90,code=3)
-dev.off()
-boxplot(mmol.H2O.m2~veg, data=light.flux)
-boxplot(umol.CO2.m2~veg,data=dark.flux)
-
-s <- match(avg.shrub.tot$plot,gpp.plot$Group.1)
-gpp.plot$gpp[14] <- NA
-gpp.plot$gpp[10] <- NA
-gpp.sh <- lm(gpp.plot$gpp[s]~avg.shrub.tot$biomass)
-
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/shrub_GPP.pdf",6,6)
-par(cex=1.4,mgp=c(2.5,1,0))
-plot(avg.shrub.tot$biomass,gpp.plot$gpp[s],pch=19,xlim=c(100,600),
-     xlab=paste("Shrub Biomass (g)"),ylim=c(-8,1),
-     ylab=expression(paste(" GPP (",mu,"mol C",O[2]," ",m^-2," ",sec^-1,")")))
-    abline(gpp.sh,lwd=2,lty="dashed")
-  dev.off ()
-
-er.td <- lm(er.plot$umol.CO2.m2~plot.met$TD)
-pdf(file="/Users/mloranty/Documents/Research/siberia_data/figures/ER_TD.pdf",6,6)
-par(cex=1.4,mgp=c(2.5,1,0))
-plot(plot.met$TD,er.plot$umol.CO2.m2,pch=19,
-     xlab="Active Layer Thickness (cm)",ylim=c(0,5),
-     ylab=expression(paste(R[ECO],"( ",mu,"mol ",m^-2," ",sec^-1,")")))
-#abline(er.td,lty="dashed",lwd=2)
-dev.off()
-
-dp <- match(paste(met$Date,met$Plot),paste(light.flux$date,light.flux$plot))
-
-plot(met$)

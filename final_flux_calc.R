@@ -9,8 +9,7 @@
 
 rm(list=ls())
 
-setwd("/Users/mloranty/Google Drive/Documents/Research/field_data/pft_lichen_flux/")
-
+setwd("/Users/mloranty/Documents/GitHub/lichen_pft/")
 ############################################################################
 # BEFORE GOING FURTHER IT IS NECESSARY TO HAVE MANUALLY EVALUATED EACH FLUX AS FOLLOWS ###
 # 1. Check the timing of flux measurement and adjust as necessary
@@ -24,7 +23,7 @@ setwd("/Users/mloranty/Google Drive/Documents/Research/field_data/pft_lichen_flu
 # read in the file with updated sampling intervals. 
 flux.rates <- read.csv(file.choose(),as.is=T)
 # crease vector of file names for the plots
-plot.files <- paste("plots/",substr(flux.rates$in.files,11,nchar(flux.rates$in.files)),".pdf",sep="")
+plot.files <- paste("flux_plots/",substr(flux.rates$in.files,11,nchar(flux.rates$in.files)),".pdf",sep="")
 
 # now calculate each flux using the updated sample intervals, create a graph
 # and append flux rates and R2 values to the data sheet
@@ -59,5 +58,5 @@ for(i in 1:length(flux.rates$in.files))
   
 }
 
-write.csv(flux.rates,file=paste("flux.rates.final",Sys.Date(),"csv",sep="."))
+write.csv(flux.rates,file=paste("flux.rates.final",Sys.Date(),"csv",sep="."),row.names=F)
 
